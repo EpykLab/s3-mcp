@@ -1,5 +1,7 @@
 # s3-mcp
 
+_original work from https://github.com/aws-samples/sample-mcp-server-s3_
+
 `s3-mcp` is a Model Context Protocol (MCP) server for AWS S3 and S3-compatible object stores (for example MinIO, Cloudflare R2, and Backblaze B2 S3). It exposes buckets and objects through MCP resources and tools so LLM clients can browse and fetch content from object storage.
 
 ## What this server exposes
