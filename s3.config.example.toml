@@ -1,0 +1,18 @@
+[default]
+region = "us-east-1"
+endpoint_url = "http://localhost:9000"
+access_key_id = "replace-me"
+secret_access_key = "replace-me"
+buckets = ["my-bucket"]
+addressing_style = "path"
+signature_version = "s3v4"
+verify_ssl = true
+
+[r2]
+region = "auto"
+endpoint_url = "https://<accountid>.r2.cloudflarestorage.com"
+access_key_id = "replace-me"
+secret_access_key = "replace-me"
+addressing_style = "virtual"
+signature_version = "s3v4"
+verify_ssl = true

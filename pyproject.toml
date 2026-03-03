@@ -1,5 +1,5 @@
 [project]
-name = "s3-mcp-server"
+name = "s3-mcp"
 version = "0.1.0"
 description = "A MCP server project"
 readme = "README.md"
@@ -10,8 +10,8 @@ dependencies = [
  "python-dotenv>=1.0.1",
 ]
 [[project.authors]]
-name = "Tonny Ouma"
-email = "tonouma@amazon.com"
+name = "EpykLab"
+email = "contact@epyklab.com"
 
 [build-system]
 requires = [ "hatchling",]

@@ -1,26 +1,45 @@
-# Sample S3 Model Context Protocol Server
+# Sample S3-Compatible Model Context Protocol Server
 
-An MCP server implementation for retrieving  data such as PDF's from S3.
+An MCP server implementation for retrieving data such as PDFs from S3-compatible object storage.
 
 ## Features
 ### Resources
-Expose AWS S3 Data through **Resources**. (think of these sort of like GET endpoints; they are used to load information into the LLM's context). Currently only **PDF** documents supported and limited to **1000** objects.
+Expose S3-compatible data through **Resources**. (think of these sort of like GET endpoints; they are used to load information into the LLM's context). Currently limited to **1000** objects per bucket listing.
 
 
 ### Tools
 - **ListBuckets**
-  - Returns a list of all buckets owned by the authenticated sender of the request
+  - Returns a list of buckets available to the configured credentials
 - **ListObjectsV2**
   - Returns some or all (up to 1,000) of the objects in a bucket with each request
 - **GetObject**
-  - Retrieves an object from Amazon S3. In the GetObject request, specify the full key name for the object. General purpose buckets - Both the virtual-hosted-style requests and the path-style requests are supported
+  - Retrieves an object from an S3-compatible endpoint using bucket name and object key
 
 
 ## Configuration
 
-### Setting up AWS Credentials
-1. Obtain AWS access key ID, secret access key, and region from the AWS Management Console.
-2. Ensure these credentials have appropriate permissions for AWS S3.
+### Setting up Credentials
+You can use either:
+1. Standard AWS-style env vars (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`) for AWS S3 and most compatible providers.
+2. S3-specific aliases (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`) plus `S3_ENDPOINT_URL` for non-AWS providers.
+
+You can also load credentials and endpoint settings from an optional config file:
+- `S3_CONFIG_FILE=/path/to/s3.config.toml` (supports `.toml` and `.json`)
+- `S3_CONFIG_PROFILE=default` (optional, defaults to `default`)
+- See `s3.config.example.toml` for a complete example
+- Optional allow-list in config file: `buckets = ["my-space"]`
+
+Precedence order:
+1. Environment variables (`S3_*`, `AWS_*`)
+2. `S3_CONFIG_FILE` profile values
+3. Botocore/AWS SDK credential provider chain
+
+Common non-AWS settings:
+- `S3_ENDPOINT_URL`: custom endpoint URL (required for most non-AWS providers)
+- `S3_ADDRESSING_STYLE=path`: often required by MinIO and some self-hosted S3 APIs
+- `S3_SIGNATURE_VERSION=s3v4`: default for modern providers
+- `S3_VERIFY_SSL=false`: only for local dev with self-signed certs
+- `S3_BUCKETS=my-space`: explicit bucket allow-list; bypasses `ListBuckets` permission requirement
 
 ### Usage with Claude Desktop
 
