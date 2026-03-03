@@ -1,138 +1,116 @@
-# Sample S3-Compatible Model Context Protocol Server
+# s3-mcp
 
-An MCP server implementation for retrieving data such as PDFs from S3-compatible object storage.
+`s3-mcp` is a Model Context Protocol (MCP) server for AWS S3 and S3-compatible object stores (for example MinIO, Cloudflare R2, and Backblaze B2 S3). It exposes buckets and objects through MCP resources and tools so LLM clients can browse and fetch content from object storage.
 
-## Features
+## What this server exposes
+
 ### Resources
-Expose S3-compatible data through **Resources**. (think of these sort of like GET endpoints; they are used to load information into the LLM's context). Currently limited to **1000** objects per bucket listing.
 
+- `s3://<bucket>/<key>` resources generated from discovered buckets and objects
+- Up to 1,000 objects per bucket listing request
+- Bucket listing is limited by `S3_MAX_BUCKETS` (default: `5`)
 
 ### Tools
-- **ListBuckets**
-  - Returns a list of buckets available to the configured credentials
-- **ListObjectsV2**
-  - Returns some or all (up to 1,000) of the objects in a bucket with each request
-- **GetObject**
-  - Retrieves an object from an S3-compatible endpoint using bucket name and object key
 
+- `ListBuckets` - list buckets accessible by configured credentials
+- `ListObjectsV2` - list objects in a bucket (supports `prefix` and `max_keys`)
+- `GetObject` - fetch an object by `bucket_name` + `key`
+
+## Quick start
+
+1. Sync dependencies:
+
+```bash
+uv sync --no-install-project
+```
+
+2. Create a local environment file from the template:
+
+```bash
+cp env.example .env
+```
+
+3. Set credentials and endpoint settings in `.env`.
+
+4. Run the server:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m s3_mcp_server.server
+```
+
+The server runs over stdio (as MCP servers normally do).
 
 ## Configuration
 
-### Setting up Credentials
-You can use either:
-1. Standard AWS-style env vars (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`) for AWS S3 and most compatible providers.
-2. S3-specific aliases (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`) plus `S3_ENDPOINT_URL` for non-AWS providers.
+You can configure this project with environment variables, an optional JSON/TOML config file, or the default AWS SDK credential chain.
 
-You can also load credentials and endpoint settings from an optional config file:
-- `S3_CONFIG_FILE=/path/to/s3.config.toml` (supports `.toml` and `.json`)
-- `S3_CONFIG_PROFILE=default` (optional, defaults to `default`)
-- See `s3.config.example.toml` for a complete example
-- Optional allow-list in config file: `buckets = ["my-space"]`
+### Credential and setting precedence
 
-Precedence order:
 1. Environment variables (`S3_*`, `AWS_*`)
-2. `S3_CONFIG_FILE` profile values
+2. `S3_CONFIG_FILE` + `S3_CONFIG_PROFILE`
 3. Botocore/AWS SDK credential provider chain
 
-Common non-AWS settings:
-- `S3_ENDPOINT_URL`: custom endpoint URL (required for most non-AWS providers)
-- `S3_ADDRESSING_STYLE=path`: often required by MinIO and some self-hosted S3 APIs
-- `S3_SIGNATURE_VERSION=s3v4`: default for modern providers
-- `S3_VERIFY_SSL=false`: only for local dev with self-signed certs
-- `S3_BUCKETS=my-space`: explicit bucket allow-list; bypasses `ListBuckets` permission requirement
+### Important environment variables
 
-### Usage with Claude Desktop
+- `S3_REGION` / `AWS_REGION` - region used for request signing
+- `S3_ENDPOINT_URL` - required for most non-AWS providers
+- `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_SESSION_TOKEN`
+- `S3_ADDRESSING_STYLE` - `auto`, `path`, or `virtual`
+- `S3_SIGNATURE_VERSION` - usually `s3v4`
+- `S3_VERIFY_SSL` - set `false` only for local/self-signed development
+- `S3_MAX_BUCKETS` - max buckets processed per list call
 
-#### Claude Desktop
+### Bucket allow-list (recommended for restricted credentials)
 
-On MacOS: `~/Library/Application\ Support/Claude/claude_desktop_config.json`
-On Windows: `%APPDATA%/Claude/claude_desktop_config.json`
+You can bypass the `ListBuckets` permission requirement by explicitly declaring allowed buckets:
 
-<details>
-  <summary>Development/Unpublished Servers Configuration</summary>
+- `S3_BUCKETS=my-bucket-a,my-bucket-b`
+- or indexed vars: `S3_BUCKET_1`, `S3_BUCKET_2`, ...
+- or config file keys: `buckets`, `bucket_names`, or `s3_buckets`
 
-```json
-{
-  "mcpServers": {
-    "s3-mcp-server": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/Users/user/generative_ai/model_context_protocol/s3-mcp-server",
-        "run",
-        "s3-mcp-server"
-      ]
-    }
-  }
-}
-```
+### Optional config file
 
-</details>
+Set:
 
-<details>
-  <summary>Published Servers Configuration</summary>
+- `S3_CONFIG_FILE=/absolute/path/to/s3.config.toml` (or `.json`)
+- `S3_CONFIG_PROFILE=default`
+
+See `s3.config.example.toml` for profile examples.
+
+## Claude Desktop example
+
+Claude Desktop config path:
+
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%/Claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "s3-mcp-server": {
-      "command": "uvx",
-      "args": [
-        "s3-mcp-server"
-      ]
+      "command": "/absolute/path/to/s3-mcp/.venv/bin/python",
+      "args": ["-m", "s3_mcp_server.server"],
+      "env": {
+        "PYTHONPATH": "/absolute/path/to/s3-mcp/src",
+        "S3_ENDPOINT_URL": "http://localhost:9000",
+        "S3_REGION": "us-east-1",
+        "S3_ACCESS_KEY_ID": "replace-me",
+        "S3_SECRET_ACCESS_KEY": "replace-me",
+        "S3_BUCKETS": "my-bucket"
+      }
     }
   }
 }
-  ```
-</details>
-
-## Development
-
-### Building and Publishing
-
-To prepare the package for distribution:
-
-1. Sync dependencies and update lockfile:
-```bash
-uv sync
 ```
 
-2. Build package distributions:
-```bash
-uv build
-```
+## Debugging
 
-This will create source and wheel distributions in the `dist/` directory.
-
-3. Publish to PyPI:
-```bash
-uv publish
-```
-
-Note: You'll need to set PyPI credentials via environment variables or command flags:
-- Token: `--token` or `UV_PUBLISH_TOKEN`
-- Or username/password: `--username`/`UV_PUBLISH_USERNAME` and `--password`/`UV_PUBLISH_PASSWORD`
-
-### Debugging
-
-Since MCP servers run over stdio, debugging can be challenging. For the best debugging
-experience, we strongly recommend using the [MCP Inspector](https://github.com/modelcontextprotocol/inspector).
-
-
-You can launch the MCP Inspector via [`npm`](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) with this command:
+The easiest way to inspect requests and responses is with the MCP Inspector:
 
 ```bash
-npx @modelcontextprotocol/inspector uv --directory /Users/user/generative_ai/model_context_protocol/s3-mcp-server run s3-mcp-server
+npx @modelcontextprotocol/inspector /absolute/path/to/s3-mcp/.venv/bin/python -m s3_mcp_server.server
 ```
-
-
-Upon launching, the Inspector will display a URL that you can access in your browser to begin debugging.
-
-
-## Security
-
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
 
 ## License
 
-This library is licensed under the MIT-0 License. See the LICENSE file.
+This project is licensed under MIT-0. See `LICENSE`.
